@@ -37,15 +37,28 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
+        
+        # map_wp is the base_waypoints we get
+        map_wp = None
+        
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
+        nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y, self.map_wp)
+        
+        # Pub data
+        lane = Lane()
+        lane.header.frame_id = msg.header.frame_id
+        lane.header.stamp = rospy.Time(0)
+        lane.waypoints = self.map_wp[nearest_wp:nearest_wp+LOOKAHEAD_WPS]
+        self.final_waypoints_pub.publish(lane)
         pass
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
+        self.map_wp = waypoints.waypoints;
         pass
 
     def traffic_cb(self, msg):
@@ -69,6 +82,20 @@ class WaypointUpdater(object):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
+    
+    def distance_sqr(self, x0, y0, x1, y1):
+        return ((x0-x1)*(x0-x1) + (y0-y1)*(y0-y1))
+        
+    def find_nearest_wp(self, x, y, map_xyz):
+        arg_min = 0;
+        val_min = distance_sqr(x, y, map_xyz[0].pose.pose.position.x, map_xyz[0].pose.pose.position.y)
+        for i in range(len(self.map_wp)):
+            val_tmp = distance_sqr(x, y, map_xyz[i].pose.pose.position.x, map_xyz[i].pose.pose.position.y)
+            if (val_tmp < val_min):
+                val_min = val_tmp
+                arg_min = i
+        return i
+        
 
 
 if __name__ == '__main__':
