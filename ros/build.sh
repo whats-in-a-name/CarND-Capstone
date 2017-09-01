@@ -34,4 +34,9 @@ fi
 echo $mode > "mode.txt"
 
 # Build workspace.
-dokka exec catkin_make_isolated -DCMAKE_BUILD_TYPE=$mode
+if [ "$(set | grep DOKKA_IMAGE)" ]
+then
+    dokka exec catkin_make_isolated -DCMAKE_BUILD_TYPE=$mode
+else
+    catkin_make_isolated -DCMAKE_BUILD_TYPE=$mode
+fi
