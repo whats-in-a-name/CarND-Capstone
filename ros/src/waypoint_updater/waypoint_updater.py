@@ -41,11 +41,12 @@ class WaypointUpdater(object):
         # map_wp is the base_waypoints we get
         self.map_wp = None
 
-
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
+        if self.map_wp is None:
+            return
         nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y, self.map_wp)
 
         # Pub data
@@ -95,7 +96,6 @@ class WaypointUpdater(object):
                 val_min = val_tmp
                 arg_min = i
         return i
-
 
 
 if __name__ == '__main__':

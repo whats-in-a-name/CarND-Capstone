@@ -172,6 +172,7 @@ class Bridge(object):
         self.publishers['trafficlights'].publish(lights)
 
     def publish_dbw_status(self, data):
+        # rospy.loginfo(data)
         self.publishers['dbw_status'].publish(Bool(data))
 
     def publish_camera(self, data):
