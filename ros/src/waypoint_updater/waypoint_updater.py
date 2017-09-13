@@ -28,39 +28,33 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        self.current_pose = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
+        self.base_waypoints = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
 
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        # TODO: Add other member variables you need below
-
-        # map_wp is the base_waypoints we get
-        self.map_wp = None
-
+        # List of route waypoints
+        self.map_wp = []
         rospy.spin()
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        if self.map_wp is None:
+
+        nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
+        if nearest_wp < 0:
             return
-        nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y, self.map_wp)
 
         # Pub data
         lane = Lane()
         lane.header.frame_id = msg.header.frame_id
-        lane.header.stamp = rospy.Time(0)
+        lane.header.stamp = rospy.get_rostime()
         lane.waypoints = self.map_wp[nearest_wp:nearest_wp+LOOKAHEAD_WPS]
         self.final_waypoints_pub.publish(lane)
-        pass
 
     def waypoints_cb(self, waypoints):
-        # TODO: Implement
         self.map_wp = waypoints.waypoints;
-        pass
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -85,18 +79,24 @@ class WaypointUpdater(object):
         return dist
 
     def distance_sqr(self, x0, y0, x1, y1):
-        return ((x0-x1)*(x0-x1) + (y0-y1)*(y0-y1))
+        return (x0 - x1) ** 2.0 + (y0 - y1) ** 2.0
 
-    def find_nearest_wp(self, x, y, map_xyz):
-        arg_min = 0;
-        val_min = self.distance_sqr(x, y, map_xyz[0].pose.pose.position.x, map_xyz[0].pose.pose.position.y)
-        for i in range(len(self.map_wp)):
-            val_tmp = self.distance_sqr(x, y, map_xyz[i].pose.pose.position.x, map_xyz[i].pose.pose.position.y)
-            if (val_tmp < val_min):
-                val_min = val_tmp
-                arg_min = i
-        return i
+    def find_nearest_wp(self, x, y):
+        if len(self.map_wp) < 1:
+            return -1
 
+        position = self.map_wp[0].pose.pose.position
+        d_min = self.distance_sqr(x, y, position.x, position.y)
+        i_min = 0;
+
+        for (i, waypoint) in enumerate(self.map_wp):
+            position = waypoint.pose.pose.position
+            d = self.distance_sqr(x, y, position.x, position.y)
+            if d < d_min:
+                d_min = d
+                i_min = i
+
+        return i_min
 
 if __name__ == '__main__':
     try:
