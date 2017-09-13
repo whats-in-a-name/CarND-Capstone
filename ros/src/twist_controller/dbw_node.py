@@ -45,7 +45,6 @@ class DBWNode(object):
         steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
-        min_speed = rospy.get_param('~min_speed', 0.1)
 
         min_speed = rospy.get_param('~min_speed', 0.1)
 
@@ -142,11 +141,6 @@ class DBWNode(object):
     def dbw_twist_cb(self, msg):
         self.linear_velocity = msg.twist.linear.x
         self.angular_velocity = msg.twist.angular.z
-
-    def dbw_twist_cb(self, msg):
-        self.linear_velocity = msg.twist.linear.x
-        self.angular_velocity = msg.twist.angular.z
-        pass
 
 if __name__ == '__main__':
     DBWNode()
