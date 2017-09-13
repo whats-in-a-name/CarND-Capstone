@@ -38,10 +38,10 @@ class WaypointUpdater(object):
 
         # List of route waypoints
         self.map_wp = []
-
         rospy.spin()
 
     def pose_cb(self, msg):
+
         nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
         if nearest_wp < 0:
             return
@@ -97,7 +97,6 @@ class WaypointUpdater(object):
                 i_min = i
 
         return i_min
-
 
 if __name__ == '__main__':
     try:
