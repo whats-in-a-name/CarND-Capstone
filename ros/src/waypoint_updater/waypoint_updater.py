@@ -3,7 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint, TrafficLight, TrafficLightArray
-
+from std_msgs.msg import Int32
 import math
 
 '''
@@ -32,7 +32,7 @@ class WaypointUpdater(object):
 
         self.current_pose = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
         self.base_waypoints = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
-        self.traffic_waypoint = rospy.Subscriber('/traffic_waypoint', TrafficLightArray, self.traffic_cb, queue_size=1)
+        self.traffic_waypoint = rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
 
         # TODO: Add a subscriber for /obstacle_waypoint below
 
@@ -78,7 +78,7 @@ class WaypointUpdater(object):
                     vel_2_use = self.velocity_map
                 else:
                     vel_2_use = 0.0
-            set_waypoint_velocity(lane.waypoints, lane.waypoints[i], vel_2_use)
+            self.set_waypoint_velocity(lane.waypoints, i, vel_2_use)
         
         self.final_waypoints_pub.publish(lane)
         
@@ -112,23 +112,22 @@ class WaypointUpdater(object):
         
         
     def traffic_cb(self, msg):
-        tl_vec = msg.tl_vec   # traffic lights that we identified
+        tl = self.map_wp[msg.data]   # traffic lights that we identified
 
         tl_ahead = None
         d_min = 1000.0
-        for tl in tl_vec:     # find the traffic light ahead of us
-            d_curr = self.distance_sqr(self.car_position.pose.position.x, self.car_position.pose.position.y, tl.pose.pose.position.x, tl.pose.pose.position.y)
-            next_car_position = self.map_wp[self.next_wp_idx]
-            d_next = self.distance_sqr(self.next_car_position.pose.position.x, self.next_car_position.pose.position.y, tl.pose.pose.position.x, tl.pose.pose.position.y)
-            if (d_curr < d_min) and (d_next < d_curr):   # we make sure the traffic light is getting closer
-                d_min = d_curr
-                tl_ahead = tl
-        
-        if (tl_ahead and (tl_ahead.state == 0)):   # red light ahead
+
+        d_curr = self.distance_sqr(self.car_position.pose.position.x, self.car_position.pose.position.y, tl.pose.pose.position.x, tl.pose.pose.position.y)
+        if (d_curr < d_min) :   # we make sure the traffic light is getting closer
+            tl_ahead = tl
+
+        if (tl_ahead):   # red light ahead
             succ = self.calc_stop_wp_map(tl_ahead)
             self.stop_wp_active = succ
         else:
             self.stop_wp_active = False
+
+
         
 
     def obstacle_cb(self, msg):
