@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+from collections import namedtuple
+
 import matplotlib.pyplot as pp
 from matplotlib.animation import FuncAnimation
 
@@ -7,68 +9,104 @@ import numpy as np
 
 import rospy
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import Int32
 
-from styx_msgs.msg import Lane, Waypoint
+from styx_msgs.msg import Lane, TrafficLightArray, Waypoint
 
 
-def main():
-    rospy.init_node('plotter')
+Plots = namedtuple('Plots', ['route', 'next_light', 'red_lights', 'yellow_lights', 'green_lights', 'path', 'pose'])
 
-    (figure, plotter) = pp.subplots()
 
-    route, = plotter.plot([], [], 'b-')
-    def base_waypoints_callback(lane):
+class Plotter(object):
+    def __init__(self):
+        (figure, plotter) = pp.subplots()
+        self.plotter = plotter
+        self.route = ([], [])
+
+        self.plots = Plots(
+            route=plotter.plot([], [], 'b-')[0],
+            next_light=plotter.plot([], [], 'mo', ms=14)[0],
+            red_lights=plotter.plot([], [], 'ro', ms=10)[0],
+            yellow_lights=plotter.plot([], [], 'yo', ms=10)[0],
+            green_lights=plotter.plot([], [], 'go', ms=10)[0],
+            path=plotter.plot([], [], 'k-', lw=3)[0],
+            pose=plotter.plot([0], [0], 'ko', ms=6)[0]
+        )
+
+        self.subscribers = [
+            rospy.Subscriber('/base_waypoints', Lane, self.route_callback, queue_size=1),
+            rospy.Subscriber('/final_waypoints', Lane, self.path_callback, queue_size=1),
+            rospy.Subscriber('/current_pose', PoseStamped, self.pose_callback, queue_size=1),
+            rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.lights_callback, queue_size=1),
+            rospy.Subscriber('/traffic_waypoint', Int32, self.next_light_callback, queue_size=1)
+        ]
+
+        def init():
+            for plot in self.plots:
+                plot.set_data([], [])
+
+            return self.plots
+
+        def animate(i):
+            return self.plots
+
+        self.animation = FuncAnimation(figure, animate, init_func=init, interval=100, repeat=False, blit=True)
+
+    def route_callback(self, message):
         x = []
         y = []
-        for waypoint in lane.waypoints:
+        for waypoint in message.waypoints:
             position = waypoint.pose.pose.position
             x.append(position.x)
             y.append(position.y)
-
-        x.append(lane.waypoints[0].pose.pose.position.x)
-        y.append(lane.waypoints[0].pose.pose.position.y)
 
         x0 = np.min(x) - 100
         xn = np.max(x) + 100
         y0 = np.min(y) - 100
         yn = np.max(y) + 100
-        plotter.axis([x0, xn, y0, yn])
+        self.plotter.axis([x0, xn, y0, yn])
 
-        route.set_data(x, y)
+        self.plots.route.set_data(x, y)
+        self.route = (x, y)
 
-    base_waypoints = rospy.Subscriber('/base_waypoints', Lane, base_waypoints_callback, queue_size=1)
-
-    path, = plotter.plot([], [], 'r-', lw=4)
-    def final_waypoints_callback(lane):
+    def path_callback(self, message):
         x = []
         y = []
-        for waypoint in lane.waypoints:
+        for waypoint in message.waypoints:
             position = waypoint.pose.pose.position
             x.append(position.x)
             y.append(position.y)
 
-        path.set_data(x, y)
+        self.plots.path.set_data(x, y)
+
+    def pose_callback(self, message):
+        x = message.pose.position.x
+        y = message.pose.position.y
+        self.plots.pose.set_data([x], [y])
+
+    def lights_callback(self, message):
+        locations = [([], []) for i in range(3)]
+        for light in message.lights:
+            data = locations[light.state]
+            data[0].append(light.pose.pose.position.x)
+            data[1].append(light.pose.pose.position.y)
+
+        lights = ['red_lights', 'yellow_lights', 'green_lights']
+        for (light, data) in zip(lights, locations):
+            getattr(self.plots, light).set_data(*data)
+
+    def next_light_callback(self, message):
+        (x, y) = self.route
+        a = message.data
+        b = a + 1
+        self.plots.next_light.set_data(x[a:b], y[a:b])
+
+    def start(self):
+        pp.show()
 
 
-    final_waypoints = rospy.Subscriber('final_waypoints', Lane, final_waypoints_callback, queue_size=1)
+def main():
+    rospy.init_node('plotter')
 
-    location, = plotter.plot([0], [0], 'ro', ms=8)
-    def pose_callback(pose):
-        x = pose.pose.position.x
-        y = pose.pose.position.y
-        location.set_data([x], [y])
-
-    pose = rospy.Subscriber('/current_pose', PoseStamped, pose_callback, queue_size=1)
-
-    def init():
-        location.set_data([], [])
-        route.set_data([], [])
-        path.set_data([], [])
-        return (location, route, path)
-
-    def animate(i):
-        return (location, route, path)
-
-    animation = FuncAnimation(figure, animate, init_func=init, interval=100, repeat=False, blit=True)
-
-    pp.show()
+    plotter = Plotter()
+    plotter.start()
