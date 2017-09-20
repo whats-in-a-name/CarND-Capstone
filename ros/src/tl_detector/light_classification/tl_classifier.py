@@ -29,13 +29,16 @@ class TLClassifier(object):
     def get_classification(self, image):
         labels = []
         windows = self.select_windows(image)
-        for w in windows: 
+        for w in windows:
             box_img = image[w[0][1]:w[1][1], w[0][0]:w[1][0], :]
             label = self.classify(box_img.copy())
             labels.append(label)
 
-        labels = np.array(labels)
+        labels = np.array(labels, dtype=np.int64)
         dist = np.bincount(labels)
+        if len(dist) < 3:
+            return -1
+
         # number of true identifications based on number of sliding windows
         threshold = ceil(len(windows)/10)
         if np.sum(dist[:3]) >= threshold:
@@ -45,7 +48,7 @@ class TLClassifier(object):
 
         return self.encoder[klass]
 
-    def classify(self,image):  
+    def classify(self,image):
 
         # define thresholds to remove sky
         rgb_threshold = [200, 200, 200]
@@ -54,15 +57,15 @@ class TLClassifier(object):
         thresholds = (image[:, :, 0] < rgb_threshold[0]) & \
                      (image[:, :, 1] < rgb_threshold[1]) & \
                      (image[:, :, 2] > rgb_threshold[2])
-        image[thresholds] = [0,0,0]    
-        
+        image[thresholds] = [0,0,0]
+
         # define box size
         h, w = image.shape[:2]
         box_h = int(ceil(h/3))
         # get image mean
         img_mean = np.mean(image)
         features = []
-        for i in range(3):    
+        for i in range(3):
             # get box
             box = image[i*box_h:(i+1)*box_h, :]
             box_mean = np.mean(box)
@@ -75,27 +78,27 @@ class TLClassifier(object):
             green = np.mean(box[:, :, 1]) / box_mean
             blue = np.mean(box[:, :, 2]) / box_mean
             features.extend([mean, red, green, blue])
-            
+
         # predict (array as input)
         features = np.array(features).reshape(1, -1)
-        
+
         if sum(np.isnan(features).any(axis=1)) == 0:
             return self.model.predict(features)[0]
         return 3
 
 
-    def slide_window(self, img, x_start_stop=[None, None], y_start_stop=[None, None], 
+    def slide_window(self, img, x_start_stop=[None, None], y_start_stop=[None, None],
                        xy_window=[(64, 64)], xy_overlap=(0.5, 0.5), debug=False):
-        """ Define a function that takes an image, start and stop positions in both x and y, 
+        """ Define a function that takes an image, start and stop positions in both x and y,
             window size (x and y dimensions), and overlap fraction (for both x and y)
-            
+
             Improved version of slide_window:
             - establish a list of different windows sizes (accept multiple xy_windows)
             - restrict search to area of images the vehicles should appear (y_stop defaults to 350)
             - vehicles near the horizon will be smaller - pending (pending)
-            
+
         """
-        
+
         # If x and/or y start/stop positions not defined, set to image size
         if x_start_stop[0] == None:
             x_start_stop[0] = 0
@@ -106,7 +109,7 @@ class TLClassifier(object):
         if y_start_stop[1] == None:
             y_start_stop[1] = img.shape[0]
 
-        # Compute the span of the region to be searched    
+        # Compute the span of the region to be searched
         xspan = x_start_stop[1] - x_start_stop[0]
         yspan = y_start_stop[1] - y_start_stop[0]
 
@@ -130,7 +133,7 @@ class TLClassifier(object):
                 endy = starty + xy_window[1]
                 # Append window position to list
                 window_list.append(((startx, starty), (endx, endy)))
-                    
+
         # Return the list of windows
         return window_list
 
@@ -143,9 +146,9 @@ class TLClassifier(object):
         xy_overlap=(0.2, .3)
         xy_windows = (w,h)
 
-        windows = self.slide_window(image, x_start_stop=x_start_stop, 
+        windows = self.slide_window(image, x_start_stop=x_start_stop,
             y_start_stop=y_start_stop, xy_window=xy_windows, xy_overlap=xy_overlap)
-                        
+
         filtered_windows = []
         for w in windows:
             box_img = image[w[0][1]:w[1][1], w[0][0]:w[1][0], :]
