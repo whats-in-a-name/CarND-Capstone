@@ -40,16 +40,16 @@ class WaypointUpdater(object):
 
         # List of route waypoints
         self.map_wp = []
-        
+
         # velocity map
         self.velocity_map = []
-        
-        # If see a red traffic light ahead 
+
+        # If see a red traffic light ahead
         self.stop_wp_active = False
-        
+
         # current car position
         self.car_position = None
-        
+
         # next wp index
         self.next_wp_idx = None
 
@@ -57,60 +57,61 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         self.car_position = msg
-        
+
         nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
         if nearest_wp < 0:
             return
         self.next_wp_idx = nearest_wp+1
-            
+
         # Pub data
         lane = Lane()
         lane.header.frame_id = msg.header.frame_id
         lane.header.stamp = rospy.get_rostime()
         lane.waypoints = self.map_wp[nearest_wp:nearest_wp+LOOKAHEAD_WPS]
-        
+
         n_stop_wp = len(self.velocity_map)
         for i in range(LOOKAHEAD_WPS):
             if (self.stop_wp_active==False):
                 vel_2_use = MAX_SPEED
             else:
                 if (i<n_stop_wp):
-                    vel_2_use = self.velocity_map
+                    vel_2_use = self.velocity_map[i]
                 else:
                     vel_2_use = 0.0
             self.set_waypoint_velocity(lane.waypoints, i, vel_2_use)
-        
+
         self.final_waypoints_pub.publish(lane)
-        
+
 
     def waypoints_cb(self, waypoints):
         self.map_wp = waypoints.waypoints
 
-        
-        
+
+
     def calc_stop_wp_map(self, tl): # set the velocities when we see a red light ahead
-        tl_wp_idx = self.find_nearest_wp(tl.pose.position.x, tl.pose.position.y)
-        if (tl_wp_idx < 0) or (tl_wp_idx < self.next_wp_idx):
+        tl_wp_idx = self.find_nearest_wp(tl.pose.pose.position.x, tl.pose.pose.position.y)
+        if (tl_wp_idx < 0) or (tl_wp_idx <= self.next_wp_idx):
             return False
-        
-        n_wp = tl_wp_idx - self.next_wp_idx                                     # number of wp 
+
+        n_wp = tl_wp_idx - self.next_wp_idx                                     # number of wp
         vel = self.get_waypoint_velocity(self.map_wp[self.next_wp_idx]);
         if (vel < MIN_SPEED):
             vel = MIN_SPEED
-        
+
         dv = vel / n_wp   # by how much to reduce the speed
-        
+
+        v_next = vel
         self.velocity_map = []
         for i in range(n_wp):
             v_next = v_next - dv
             if (v_next < 0.0):
                 v_next = 0.0
             self.velocity_map.append(v_next)
-            
-        return True   
-        
-        
-        
+
+        return True
+
+
+
     def traffic_cb(self, msg):
         tl = self.map_wp[msg.data]   # traffic lights that we identified
 
@@ -128,7 +129,7 @@ class WaypointUpdater(object):
             self.stop_wp_active = False
 
 
-        
+
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
