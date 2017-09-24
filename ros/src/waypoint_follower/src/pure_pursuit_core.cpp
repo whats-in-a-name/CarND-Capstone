@@ -130,7 +130,7 @@ bool PurePursuit::interpolateNextTarget(int next_waypoint, geometry_msgs::Point 
   // the distance  "d" between the foot of a perpendicular line and the center of circle is ...
   //    | a * x0 + b * y0 + c |
   // d = -------------------------------
-  //          √( a~2 + b~2)
+  //          ???( a~2 + b~2)
   double d = getDistanceBetweenLineAndPoint(current_pose_.pose.position, a, b, c);
 
   // ROS_INFO("a : %lf ", a);
@@ -317,7 +317,7 @@ geometry_msgs::TwistStamped PurePursuit::outputZero() const
 }
 geometry_msgs::TwistStamped PurePursuit::outputTwist(geometry_msgs::Twist t) const
 {
-  double g_lateral_accel_limit = 0.8;
+  double g_lateral_accel_limit = 5.0;
   double ERROR = 1e-8;
 
   geometry_msgs::TwistStamped twist;
