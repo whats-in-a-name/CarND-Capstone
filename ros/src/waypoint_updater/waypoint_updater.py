@@ -82,11 +82,8 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub.publish(lane)
 
-
     def waypoints_cb(self, waypoints):
         self.map_wp = waypoints.waypoints
-
-
 
     def calc_stop_wp_map(self, tl): # set the velocities when we see a red light ahead
         tl_wp_idx = self.find_nearest_wp(tl.pose.pose.position.x, tl.pose.pose.position.y)
@@ -110,9 +107,11 @@ class WaypointUpdater(object):
 
         return True
 
-
-
     def traffic_cb(self, msg):
+        if msg.data < 0:
+            # rospy.logwarn('Traffic light index %s: ', msg.data)
+            return
+
         tl = self.map_wp[msg.data]   # traffic lights that we identified
 
         tl_ahead = None
@@ -127,9 +126,6 @@ class WaypointUpdater(object):
             self.stop_wp_active = succ
         else:
             self.stop_wp_active = False
-
-
-
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
