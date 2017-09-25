@@ -41,7 +41,6 @@ class Controller(object):
                               decel_limit, accel_limit)
 
         self._now = None
-        pass
 
     def reset(self):
         """
@@ -50,7 +49,6 @@ class Controller(object):
         """
         self.linear_pid.reset()
         self._now = None
-        pass
 
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
@@ -83,7 +81,7 @@ class Controller(object):
             # Now max brake torque is around 1800
             decel = abs(_control_correction)
             if decel > self.brake_deadband:
-                brake = self._brake_torque_base * decel
+                brake = self._brake_torque_base * decel * 1
 
         # Steer and steer ratio
         steering = self.yaw_controller.get_steering(linear_velocity_setpoint,

@@ -79,8 +79,6 @@ class DBWNode(object):
             'linear_d_term': linear_d_term
         }
 
-        # TODO: Create `TwistController` object
-        # self.controller = TwistController(<Arguments you wish to provide>)
         self.controller = Controller(**params)
 
         self.dbw_enabled = False
@@ -92,7 +90,7 @@ class DBWNode(object):
         self.angular_velocity_setpoint = .0
         # Only linear
         self.current_linear_velocity = .0
-        # TODO: Subscribe to all the topics you need to
+        # Subscribe to all the topics you need to
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.dbw_twist_cb)
@@ -102,16 +100,6 @@ class DBWNode(object):
         # For low performance setup
         rate = rospy.Rate(20)  # 20Hz
         while not rospy.is_shutdown():
-            # TODO: Get predicted throttle, brake, and steering using `twist_controller`
-            # You should only publish the control commands if dbw is enabled
-            # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
-            #                                                     <proposed angular velocity>,
-            #                                                     <current linear velocity>,
-            #                                                     <dbw status>,
-            #                                                     <any other argument you need>)
-            # if <dbw is enabled>:
-            #   self.publish(throttle, brake, steer)
-
             controller_params = {
                 'linear_velocity_setpoint': self.linear_velocity_setpoint,
                 'angular_velocity_setpoint': self.angular_velocity_setpoint,
