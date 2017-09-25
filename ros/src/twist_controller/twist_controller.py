@@ -1,7 +1,7 @@
+import rospy
+
 from yaw_controller import YawController
 from pid import PID
-
-import rospy
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -43,7 +43,49 @@ class Controller(object):
         self._now = None
         pass
 
+    def reset(self):
+        """
+        Reset PID when dbw_enable event is disabled
+        :return:
+        """
+        self.linear_pid.reset()
+        self._now = None
+        pass
+
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        return 1., 0., 0.
+        linear_velocity_setpoint = kwargs['linear_velocity_setpoint']
+        angular_velocity_setpoint = kwargs['angular_velocity_setpoint']
+        current_linear_velocity = kwargs['current_linear_velocity']
+
+        # Sample time interval:
+        timestamp = rospy.get_time()
+        if not self._now:
+            _sample_time = 0.02  # 50 Hz
+        else:
+            _sample_time = timestamp - self._now
+        self._now = timestamp
+
+        _error = linear_velocity_setpoint - current_linear_velocity
+
+        _control_correction = self.linear_pid.step(_error, _sample_time)
+
+        throttle = 0
+        brake = 0
+        if _control_correction > 0:
+            # Throttle scale
+            accel = _control_correction * 1
+            # Should multiple it by the nominal value of control input
+            throttle = accel
+        else:
+            # Factor to achieve around 20000 max brake torque?
+            # Now max brake torque is around 1800
+            decel = abs(_control_correction)
+            if decel > self.brake_deadband:
+                brake = self._brake_torque_base * decel
+
+        # Steer and steer ratio
+        steering = self.yaw_controller.get_steering(linear_velocity_setpoint,
+                                                    angular_velocity_setpoint, current_linear_velocity)
+        return throttle, brake, steering
