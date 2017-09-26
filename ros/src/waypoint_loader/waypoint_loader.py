@@ -55,9 +55,9 @@ class WaypointLoader(object):
                 # Clamping speed in launch file
                 # For extra safety, we provide redundant clamping
                 # 10mph
-                if self.velocity >= 16:
-                    self.velocity = 16
-                p.twist.twist.linear.x = float(self.velocity*0.27778)
+                if self.velocity >= 10:
+                    self.velocity = 10
+                p.twist.twist.linear.x = float(self.velocity)
 
                 waypoints.append(p)
         return self.decelerate(waypoints)
