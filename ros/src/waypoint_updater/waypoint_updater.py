@@ -109,6 +109,7 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         if msg.data < 0:
+            self.stop_wp_active = False
             # rospy.logwarn('Traffic light index %s: ', msg.data)
             return
 
