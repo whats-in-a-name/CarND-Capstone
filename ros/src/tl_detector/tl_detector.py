@@ -16,6 +16,7 @@ from light_classification.tl_classifier import TLClassifier
 from styx_msgs.msg import TrafficLight, TrafficLightArray
 from styx_msgs.msg import Lane
 
+import os
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -218,20 +219,22 @@ class TLDetector(object):
         (x_tl, y_tl) = self.project_to_image_plane(light + np.array([-0.7, -0.7, 1.0]))
         (x_br, y_br) = self.project_to_image_plane(light + np.array([0.5, 0.5, -1.0]))
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         shape = cv_image.shape
 
-        a = int(max(0, y_tl))
+        a = int(max(0, y_tl)+5)
         b = int(min(y_br, shape[0]))
         c = int(max(0, min(x_br, x_tl)))
-        d = int(min(max(x_br, x_tl), shape[1]))
+        d = int(min(max(x_br, x_tl)-20, shape[1]))
 
         if (b - a) < 50 or (d - c) < 50:
             return TrafficLight.UNKNOWN
 
-        zoomed = cv2.resize(cv_image[a:b, c:d], (100, 140))
+        # original 100, 140
+        zoomed = cv2.resize(cv_image[a:b, c:d], (40, 90))
+
         state = self.light_classifier.get_classification(zoomed)
-        self.image_zoomed.publish(self.bridge.cv2_to_imgmsg(zoomed, 'rgb8'))
+        self.image_zoomed.publish(self.bridge.cv2_to_imgmsg(zoomed, 'bgr8'))
         return state
 
     def process_traffic_lights(self):
@@ -242,6 +245,10 @@ class TLDetector(object):
             int: index of waypoint closes to the upcoming stop line for a traffic light (-1 if none exists)
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
         '''
+
+        # Entire function has changed? what exacty is going on here?
+        # is it failing to classify all topics, or is it not listening at all?
+
         # Don't process if there are no waypoints or current position.
         if any(v is None for v in [self.waypoints, self.stop_indexes, self.pose]):
             return (-1, TrafficLight.UNKNOWN)
