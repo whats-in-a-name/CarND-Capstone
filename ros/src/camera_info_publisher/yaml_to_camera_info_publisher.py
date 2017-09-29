@@ -52,7 +52,7 @@ def yaml_to_CameraInfo(calib_yaml):
 
 if __name__ == "__main__":
 
-    calib_yaml = rospy.get_param("/grasshopper_calibration_yaml")
+    calib_yaml = rospy.get_param("/camera_calibration_yaml")
 
     # Parse yaml file
     camera_info_msg = yaml_to_CameraInfo(calib_yaml)
