@@ -20,4 +20,10 @@
 
     <!--Traffic Light Locations and Camera Config -->
     <param name="traffic_light_config" textfile="$(find tl_detector)/sim_traffic_light_config.yaml" />
+
+    <!--Camera Calibration YAML -->
+    <param name="camera_calibration_yaml" textfile="$(find styx)../../../data/calibration_simulator.yaml" />
+
+    <!--Camera Info Publisher -->
+    <include file="$(find camera_info_publisher)/launch/camera_info_publisher_sim.launch"/>
 </launch>

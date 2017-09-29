@@ -19,8 +19,8 @@
     <include file="$(find tl_detector)/launch/tl_detector_site.launch"/>
 
     <!--Camera Calibration YAML -->
-    <param name="grasshopper_calibration_yaml" textfile="$(find styx)../../../data/grasshopper_calibration.yml" />
+    <param name="camera_calibration_yaml" textfile="$(find styx)../../../data/calibration_grasshopper.yaml" />
 
     <!--Camera Info Publisher -->
-    <include file="$(find camera_info_publisher)/launch/camera_info_publisher.launch"/>
+    <include file="$(find camera_info_publisher)/launch/camera_info_publisher_site.launch"/>
 </launch>
