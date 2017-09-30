@@ -143,7 +143,7 @@ class Bridge(object):
         self.publishers['current_velocity'].publish(self.create_twist(self.vel, self.angular))
 
         _s = ' '
-        position_str = _s.join((str(data['x']), str(data['y']), str(data['z'])))
+        position_str = _s.join((str(data['x']), str(data['y']), str(data['z']), str(data['yaw'])))
         current_velocity_str = _s.join((str(self.vel), str(self.angular)))
         self.server('current_pose', data={'current_pose': position_str})
         self.server('current_velocity', data={'current_velocity': current_velocity_str})
