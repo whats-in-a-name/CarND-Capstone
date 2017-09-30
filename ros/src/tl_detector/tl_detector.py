@@ -126,11 +126,20 @@ class TLDetector(object):
             self.state = state
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
+            if (
+                state == TrafficLight.GREEN
+                or (
+                    state == TrafficLight.YELLOW
+                    and self.state_count < 2 * STATE_COUNT_THRESHOLD
+                )
+            ):
+                light_wp = -1
+
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+
         self.state_count += 1
 
     def traffic_cb(self, msg):
@@ -213,7 +222,7 @@ class TLDetector(object):
         c = int(max(0, min(x_br, x_tl)))
         d = int(min(max(x_br, x_tl)-20, shape[1]))
 
-        if (b - a) < 50 or (d - c) < 50:
+        if (b - a) < 10 or (d - c) < 10:
             return TrafficLight.UNKNOWN
 
         # original 100, 140
