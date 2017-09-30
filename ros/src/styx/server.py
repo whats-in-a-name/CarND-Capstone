@@ -70,7 +70,7 @@ def trafficlights(sid, data):
 def image(sid, data):
     bridge.publish_camera(data)
 
-@sio.on('downlink'):
+@sio.on('downlink')
 def downlink(sid, data):
     bridge.publish_lpf_status(data['lpf'])
     bridge.publish_lc_status(data['lc'])
