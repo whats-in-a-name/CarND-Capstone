@@ -13,7 +13,7 @@ class Controller(object):
         vehicle_mass = kwargs['vehicle_mass']
         fuel_capacity = kwargs['fuel_capacity']
         self.brake_deadband = kwargs['brake_deadband']
-        decel_limit = kwargs['decel_limit']
+        self.decel_limit = kwargs['decel_limit']
         accel_limit = kwargs['accel_limit']
         wheel_radius = kwargs['wheel_radius']
         wheel_base = kwargs['wheel_base']
@@ -38,7 +38,7 @@ class Controller(object):
 
         # Tune the parameters in dbw_node
         self.linear_pid = PID(linear_p_term, linear_i_term, linear_d_term,
-                              decel_limit, accel_limit)
+                              self.decel_limit, accel_limit)
 
         self._now = None
 
@@ -77,11 +77,12 @@ class Controller(object):
             # Should multiple it by the nominal value of control input
             throttle = accel
         else:
+            # When using brake torque message with DBW
             # Factor to achieve around 20000 max brake torque?
             # Now max brake torque is around 1800
             decel = abs(_control_correction)
             if decel > self.brake_deadband:
-                brake = self._brake_torque_base * decel * 1
+                brake = decel/float(self.decel_limit)
 
         # Steer and steer ratio
         steering = self.yaw_controller.get_steering(linear_velocity_setpoint,

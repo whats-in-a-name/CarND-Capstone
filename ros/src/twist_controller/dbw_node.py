@@ -55,18 +55,19 @@ class DBWNode(object):
             rospy.spin()
 
     def publish(self, throttle, brake, steer):
-        if throttle >= 0.08:
+        # The numerical issue is taken care by brake_deadband
+        if brake > 0:
+            bcmd = BrakeCmd()
+            bcmd.enable = True
+            bcmd.pedal_cmd_type = BrakeCmd.CMD_PERCENT
+            bcmd.pedal_cmd = brake
+            self.brake_pub.publish(bcmd)
+        else:
             tcmd = ThrottleCmd()
             tcmd.enable = True
             tcmd.pedal_cmd_type = ThrottleCmd.CMD_PERCENT
             tcmd.pedal_cmd = throttle
             self.throttle_pub.publish(tcmd)
-        else:
-            bcmd = BrakeCmd()
-            bcmd.enable = True
-            bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
-            bcmd.pedal_cmd = brake
-            self.brake_pub.publish(bcmd)
 
         scmd = SteeringCmd()
         scmd.enable = True
