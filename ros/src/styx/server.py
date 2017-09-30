@@ -114,7 +114,7 @@ def main():
     server = Server()
     server.spin()
 
-@sio.on('downlink'):
+@sio.on('downlink')
 def downlink(sid, data):
     bridge.publish_lpf_status(data['lpf'])
     bridge.publish_lc_status(data['lc'])
