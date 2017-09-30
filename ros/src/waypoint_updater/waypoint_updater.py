@@ -61,7 +61,11 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
-        if nearest_wp < 0 || len(self.velocity_map) is 0:
+        if nearest_wp < 0:
+            return
+
+        if len(self.velocity_map) is 0:
+            rospy.logwarn('Velocity map is empty!')
             return
 
         self.waypoint_idx = nearest_wp
