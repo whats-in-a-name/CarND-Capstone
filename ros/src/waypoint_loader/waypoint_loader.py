@@ -51,13 +51,8 @@ class WaypointLoader(object):
                 p.pose.pose.position.z = float(wp['z'])
                 q = self.quaternion_from_yaw(float(wp['yaw']))
                 p.pose.pose.orientation = Quaternion(*q)
-                # km/h to m/s
-                # Clamping speed in launch file
-                # For extra safety, we provide redundant clamping
-                # 10mph
-                if self.velocity >= 10:
-                    self.velocity = 10
-                p.twist.twist.linear.x = float(self.velocity)
+                # Convert speed from miles per hour to meters per second
+                p.twist.twist.linear.x = float(self.velocity) * 0.44704
 
                 waypoints.append(p)
         return self.decelerate(waypoints)
