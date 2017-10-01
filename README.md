@@ -1,13 +1,40 @@
-This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
+This is the capstone project repo for team _What's In a Name? (WIN)_. Team WIN is composed of the following course participants:
 
-### Installation 
+<table>
+  <tr>
+    <th>Name</th>
+    <th>Role / Responsibility</th>
+  </tr>
+  <tr>
+    <td>Helio Perroni Filho</td>
+    <td>Team Leader</td>
+  </tr>
+  <tr>
+    <td>Ian Zhang</td>
+    <td>Drive-By-Wire (DBW)</td>
+  </tr>
+  <tr>
+    <td>Lucas Souza</td>
+    <td>Traffic Sign Detector</td>
+  </tr>
+  <tr>
+    <td>Shay Koren</td>
+    <td>Waypoint Updater</td>
+  </tr>
+  <tr>
+    <td>Yong Zhang</td>
+    <td>Documentation and Integration Tests</td>
+  </tr>
+</table>
 
-* Be sure that your workstation is running Ubuntu 16.04 Xenial Xerus or Ubuntu 14.04 Trusty Tahir. [Ubuntu downloads can be found here](https://www.ubuntu.com/download/desktop). 
+### Installation
+
+* Be sure that your workstation is running Ubuntu 16.04 Xenial Xerus or Ubuntu 14.04 Trusty Tahir. [Ubuntu downloads can be found here](https://www.ubuntu.com/download/desktop).
 * If using a Virtual Machine to install Ubuntu, use the following configuration as minimum:
   * 2 CPU
   * 2 GB system memory
   * 25 GB of free hard drive space
-  
+
   The Udacity provided virtual machine has ROS and Dataspeed DBW already installed, so you can skip the next two steps if you are using this.
 
 * Follow these instructions to install ROS
