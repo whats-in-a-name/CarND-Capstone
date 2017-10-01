@@ -65,7 +65,6 @@ class WaypointUpdater(object):
             return
 
         if len(self.velocity_map) is 0:
-            rospy.logwarn('Velocity map is empty!')
             return
 
         self.waypoint_idx = nearest_wp
