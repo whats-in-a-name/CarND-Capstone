@@ -1,119 +1,98 @@
 #!/usr/bin/env python
 
+import math
 from copy import deepcopy
 
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint, TrafficLight, TrafficLightArray
 from std_msgs.msg import Int32
-import math
-
-'''
-This node will publish waypoints from the car's current position to some `x` distance ahead.
-
-As mentioned in the doc, you should ideally first implement a version which does not care
-about traffic lights or obstacles.
-
-Once you have created dbw_node, you will update this node to use the status of traffic lights too.
-
-Please note that our simulator also provides the exact location of traffic lights and their
-current status in `/vehicle/traffic_lights` message. You can use this message to build this node
-as well as to verify your TL classifier.
-
-TODO (for Yousuf and Aaron): Stopline location for each traffic light.
-'''
-
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-MAX_SPEED = 10.0
-MIN_SPEED = 1.0
 
 
 class WaypointUpdater(object):
+    r'''The Waypoint Updater extracts a sequence of waypoints from the route,
+        annotates it with target speeds, and publishes the result for downstream
+        nodes to use as a path for the car to follow.
+    '''
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        self.subscriber = [
+        self.subscribers = [
             rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1),
             rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb, queue_size=1),
             rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1),
             rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
         ]
 
-        # TODO: Add a subscriber for /obstacle_waypoint below
+        self.final_waypoints = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
+        self.v_min = rospy.get_param('~v_min', 1.0)
+        self.n = rospy.get_param('~lookahead', 200)
 
         self.current_velocity = 0
 
         # List of route waypoints
-        self.map_wp = []
+        self.waypoints = []
 
-        # velocity map
-        self.velocity_map = []
+        # List of velocities up to the stop point ahead.
+        self.v_stopping = []
 
-        # If see a red traffic light ahead
-        self.stop_wp_active = False
+        # Index of the waypoint closest to the car.
+        self.i_car = 0
 
-        # next wp index
-        self.waypoint_idx = 0
-
+    def spin(self):
         rospy.spin()
 
     def pose_cb(self, msg):
-        nearest_wp = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
-        if nearest_wp < 0:
+        i_car = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
+        if i_car < 0:
             return
 
-        self.waypoint_idx = nearest_wp
+        self.i_car = i_car
 
-        a = nearest_wp
-        b = min(nearest_wp + LOOKAHEAD_WPS, len(self.map_wp))
+        a = i_car
+        b = min(i_car + self.n, len(self.waypoints))
 
         # Pub data
         lane = Lane()
         lane.header.frame_id = msg.header.frame_id
         lane.header.stamp = rospy.get_rostime()
-        lane.waypoints = deepcopy(self.map_wp[a:b])
+        lane.waypoints = deepcopy(self.waypoints[a:b])
 
-        if self.stop_wp_active:
-            n_stop_wp = len(self.velocity_map)
+        v_stopping = self.v_stopping
+        if len(v_stopping) > 0:
+            n_stopping = len(v_stopping)
             for i in range(b - a):
-                v = self.velocity_map[i] if i < n_stop_wp else 0.0
+                v = v_stopping[i] if i < n_stopping else 0.0
                 self.set_waypoint_velocity(lane.waypoints, i, v)
 
-        self.final_waypoints_pub.publish(lane)
+        self.final_waypoints.publish(lane)
 
     def current_velocity_cb(self, msg):
         self.current_velocity = msg.twist.linear.x
 
     def waypoints_cb(self, waypoints):
-        self.map_wp = waypoints.waypoints
-
-    def calc_stop_wp_map(self, tl_wp_idx): # set the velocities when we see a red light ahead
-        if (tl_wp_idx < 0) or (tl_wp_idx <= self.waypoint_idx):
-            return False
-
-        n_wp = tl_wp_idx - self.waypoint_idx
-        vel = self.current_velocity
-        dv = 1.5 * vel ** (1.0 / n_wp)
-        self.velocity_map = []
-        for i in range(n_wp):
-            vel /= dv
-            if (vel < MIN_SPEED):
-                vel = 0.0
-            self.velocity_map.append(vel)
-
-        # Ensures the car is stopped at the end of the sequence.
-        self.velocity_map[-1] = 0.0
-
-        return True
+        self.waypoints = waypoints.waypoints
 
     def traffic_cb(self, msg):
-        self.stop_wp_active = self.calc_stop_wp_map(msg.data)
+        self.v_stopping = []
 
-    def obstacle_cb(self, msg):
-        # TODO: Callback for /obstacle_waypoint message. We will implement it later
-        pass
+        i_light = msg.data
+        if i_light < 0 or i_light < self.i_car:
+            return
+
+        n = 1 + i_light - self.i_car
+        self.v_stopping = [0.0] * n
+        self.v_stopping[:-3] = [self.v_min] * (n - 3)
+
+        if n < 7:
+            return
+
+        v_max = max(self.current_velocity, self.v_min)
+        dv = v_max ** (1.0 / n)
+
+        for i in range(n - 6):
+            self.v_stopping[i] = dv ** (n - 1 - i)
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
@@ -133,7 +112,7 @@ class WaypointUpdater(object):
         return (x0 - x1) ** 2.0 + (y0 - y1) ** 2.0
 
     def find_nearest_wp(self, x, y):
-        waypoints = self.map_wp[self.waypoint_idx:]
+        waypoints = self.waypoints[self.i_car:]
         if len(waypoints) < 1:
             return -1
 
@@ -148,11 +127,9 @@ class WaypointUpdater(object):
                 d_min = d
                 i_min = i
 
-        return self.waypoint_idx + i_min
+        return self.i_car + i_min
 
 
 if __name__ == '__main__':
-    try:
-        WaypointUpdater()
-    except rospy.ROSInterruptException:
-        rospy.logerr('Could not start waypoint updater node.')
+    node = WaypointUpdater()
+    node.spin()
