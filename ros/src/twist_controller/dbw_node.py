@@ -30,7 +30,9 @@ class DBWNode(object):
             min_speed=rospy.get_param('~min_speed', 0.0),
             linear_p_term=rospy.get_param('~linear_p_term', 1),
             linear_i_term=rospy.get_param('~linear_i_term', 0.0005),
-            linear_d_term=rospy.get_param('~linear_d_term', 0.05)
+            linear_d_term=rospy.get_param('~linear_d_term', 0.05),
+            lpf_tau=rospy.get_param('~lpf_tau', 0.5),
+            lpf_ts=rospy.get_param('~lpf_ts', 1)
         )
 
         # Target velocities

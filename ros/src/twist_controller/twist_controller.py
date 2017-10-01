@@ -2,6 +2,7 @@ import rospy
 import math
 
 from yaw_controller import YawController
+from lowpass import LowPassFilter
 from pid import PID
 
 GAS_DENSITY = 2.858
@@ -27,6 +28,9 @@ class Controller(object):
         linear_i_term = kwargs['linear_i_term']
         linear_d_term = kwargs['linear_d_term']
 
+        lpf_tau = kwargs['lpf_tau']
+        lpf_ts = kwargs['lpf_ts']
+
         # Calculate required braking torque according to vehicle dynamics?
         _total_vehicle_mass = vehicle_mass + fuel_capacity * GAS_DENSITY
         # Use F = ma to calculate the
@@ -37,10 +41,12 @@ class Controller(object):
         self.yaw_controller = YawController(wheel_base, steer_ratio,
                                             min_speed, max_lat_accel, max_steer_angle)
 
-        # Tune the parameters in dbw_node
+        # Tune PID and Low Pass Filter parameters in dbw_node
         self.linear_pid = PID(linear_p_term, linear_i_term, linear_d_term,
                               self.decel_limit, self.accel_limit)
 
+        # Normalized frequency tau/ts is what matters
+        self.low_pass_filter = LowPassFilter(lpf_tau, lpf_ts)
         self._now = None
 
     def reset(self):
@@ -69,6 +75,10 @@ class Controller(object):
         _error = linear_velocity_setpoint - current_linear_velocity
 
         _control_correction = self.linear_pid.step(_error, _sample_time)
+
+        # TODO: Use (recursive) longer tap FIR low pass filter
+        # Similar filter can also be used for interpolation and launch control?
+        _control_correction = self.low_pass_filter.filt(_control_correction)
 
         throttle = 0
         brake = 0
