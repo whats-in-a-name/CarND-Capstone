@@ -6,6 +6,7 @@ import eventlet
 # See: http://eventlet.net/doc/patching.html
 eventlet.monkey_patch()
 
+import rospy
 import socketio
 import eventlet.wsgi
 import time
@@ -14,66 +15,105 @@ from flask import Flask, render_template
 from bridge import Bridge
 from conf import conf
 
-# Enforce use of eventlet for asynchronous operations.
-sio = socketio.Server(async_mode='eventlet')
 
-app = Flask(__name__)
-dbw_enable = False
-msgs = {}
+class Server(object):
+    r'''Interface to the simulator.
+    '''
+    def __init__(self):
+        r'''Create a new simulator interface.
+        '''
+        # Simulator ID.
+        self.sid = None
+
+        # DBW activation status.
+        self.dbw_enable = False
+
+        # Message buffer.
+        self.msgs = {}
+
+        # Bridge object between ROS and simulator.
+        self.bridge = Bridge(conf, self.send)
+
+        # Enforce use of eventlet for asynchronous operations.
+        self.sio = socketio.Server(async_mode='eventlet')
+
+        # Register event handlers
+        self.sio.on('connect', self.connect)
+        self.sio.on('telemetry', self.telemetry)
+        self.sio.on('control', self.control)
+        self.sio.on('obstacle', self.obstacle)
+        self.sio.on('lidar', self.lidar)
+        self.sio.on('trafficlights', self.trafficlights)
+        self.sio.on('image', self.image)
+
+    def send(self, topic, data):
+        r'''Queue a message for submission to the simulator.
+        '''
+        self.msgs[topic] = data
+
+    def spin(self):
+        r'''Start the interface.
+        '''
+        # Wrap Flask application with engineio's middleware
+        app = socketio.Middleware(self.sio, Flask(__name__))
+
+        # deploy as an eventlet WSGI server
+        eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
+
+    def connect(self, sid, environment):
+        r'''Connect to the simulator.
+        '''
+        rospy.loginfo('Connected to simulator at ID "%s"' % sid)
+        self.sid = sid
+
+    def telemetry(self, sid, data):
+        r'''Collect telemetry data from the simulator and send queued messages in return.
+        '''
+        if data["dbw_enable"] != self.dbw_enable:
+            self.dbw_enable = data["dbw_enable"]
+            self.bridge.publish_dbw_status(self.dbw_enable)
+
+        # Copy messages before sending to avoid race conditions.
+        # Clean up message buffer afterwards.
+        sending = list(self.msgs.items())
+        self.msgs.clear()
+
+        # Send all messages to simulator.
+        for (topic, data) in sending:
+            self.sio.emit(topic, data=data, room=self.sid, skip_sid=True)
+
+        self.bridge.publish_odometry(data)
+
+    def control(self, sid, data):
+        r'''Publish control data received from the simulator.
+        '''
+        self.bridge.publish_controls(data)
+
+    def obstacle(self, sid, data):
+        r'''Publish obstacle data received from the simulator.
+        '''
+        self.bridge.publish_obstacles(data)
+
+    def lidar(self, sid, data):
+        r'''Publish LiDAR data received from the simulator.
+        '''
+        self.bridge.publish_lidar(data)
+
+    def trafficlights(self, sid, data):
+        r'''Publish traffic light data received from the simulator.
+        '''
+        self.bridge.publish_traffic(data)
+
+    def image(self, sid, data):
+        r'''Publish video camera data received from the simulator.
+        '''
+        self.bridge.publish_camera(data)
 
 
-@sio.on('connect')
-def connect(sid, environ):
-    print("connect ", sid)
-
-def send(topic, data):
-    msgs[topic] = data
-
-bridge = Bridge(conf, send)
-
-@sio.on('telemetry')
-def telemetry(sid, data):
-    global dbw_enable
-    if data["dbw_enable"] != dbw_enable:
-        dbw_enable = data["dbw_enable"]
-        bridge.publish_dbw_status(dbw_enable)
-
-    bridge.publish_odometry(data)
-
-    # Copy messages before sending to avoid race conditions.
-    # Clean up message buffer afterwards.
-    sending = list(msgs.items())
-    msgs.clear()
-
-    # Send all messages to simulator.
-    for (topic, data) in sending:
-        sio.emit(topic, data=data, skip_sid=True)
-
-
-@sio.on('control')
-def control(sid, data):
-    bridge.publish_controls(data)
-
-@sio.on('obstacle')
-def obstacle(sid, data):
-    bridge.publish_obstacles(data)
-
-@sio.on('lidar')
-def obstacle(sid, data):
-    bridge.publish_lidar(data)
-
-@sio.on('trafficlights')
-def trafficlights(sid, data):
-    bridge.publish_traffic(data)
-
-@sio.on('image')
-def image(sid, data):
-    bridge.publish_camera(data)
+def main():
+    server = Server()
+    server.spin()
 
 
 if __name__ == '__main__':
-    # wrap Flask application with engineio's middleware
-    app = socketio.Middleware(sio, app)
-
-    # deploy as an eventlet WSGI server
-    eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
+    main()
