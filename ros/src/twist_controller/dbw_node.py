@@ -40,6 +40,9 @@ class DBWNode(object):
         # DBW activation state
         self.dbw_enabled = False
 
+        # m/s
+        self.LOW_SPEED_THRESHOLD = rospy.get_param('~low_speed_threshold', 3)
+
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd', SteeringCmd, queue_size=1)
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd', BrakeCmd, queue_size=1)
@@ -82,13 +85,19 @@ class DBWNode(object):
             self.controller.reset()
             return
 
-        command = self.controller.control(
+        _linear_velocity = msg.twist.linear.x
+        throttle, brake, steer = self.controller.control(
             angular_velocity_setpoint=self.angular_velocity,
             linear_velocity_setpoint=self.linear_velocity,
-            current_linear_velocity=msg.twist.linear.x
+            current_linear_velocity=_linear_velocity
         )
 
-        self.publish(*command)
+        # Using launch control to smooth low speed throttle increase
+        # e.g. restart after stopping for red light
+        if throttle > 0.08 and _linear_velocity < self.LOW_SPEED_THRESHOLD:
+            throttle = self.controller.launch_control(_linear_velocity)
+
+        self.publish(throttle=throttle, brake=brake, steer=steer)
 
     def dbw_twist_cb(self, msg):
         self.angular_velocity = msg.twist.angular.z

@@ -1,4 +1,5 @@
 import rospy
+import math
 
 from yaw_controller import YawController
 from pid import PID
@@ -14,7 +15,7 @@ class Controller(object):
         fuel_capacity = kwargs['fuel_capacity']
         self.brake_deadband = kwargs['brake_deadband']
         self.decel_limit = kwargs['decel_limit']
-        accel_limit = kwargs['accel_limit']
+        self.accel_limit = kwargs['accel_limit']
         wheel_radius = kwargs['wheel_radius']
         wheel_base = kwargs['wheel_base']
         steer_ratio = kwargs['steer_ratio']
@@ -38,7 +39,7 @@ class Controller(object):
 
         # Tune the parameters in dbw_node
         self.linear_pid = PID(linear_p_term, linear_i_term, linear_d_term,
-                              self.decel_limit, accel_limit)
+                              self.decel_limit, self.accel_limit)
 
         self._now = None
 
@@ -88,3 +89,18 @@ class Controller(object):
         steering = self.yaw_controller.get_steering(linear_velocity_setpoint,
                                                     angular_velocity_setpoint, current_linear_velocity)
         return throttle, brake, steering
+
+    def launch_control(self, vel):
+        return self._logistic(self.accel_limit, vel)
+
+    @staticmethod
+    def _logistic(max_x, x):
+        """
+        _steepness is determined empirically
+        :param max_x:
+        :param x:
+        :return:
+        """
+        _steepness = 0.3
+        _mid_point = 4
+        return max_x / (1 + pow(math.exp(1), _steepness * (_mid_point - x)))
