@@ -64,6 +64,9 @@ class WaypointUpdater(object):
         if nearest_wp < 0:
             return
 
+        if len(self.velocity_map) is 0:
+            return
+
         self.waypoint_idx = nearest_wp
 
         a = nearest_wp

@@ -1,6 +1,8 @@
 import rospy
+import math
 
 from yaw_controller import YawController
+from lowpass import LowPassFilter
 from pid import PID
 
 GAS_DENSITY = 2.858
@@ -13,8 +15,8 @@ class Controller(object):
         vehicle_mass = kwargs['vehicle_mass']
         fuel_capacity = kwargs['fuel_capacity']
         self.brake_deadband = kwargs['brake_deadband']
-        decel_limit = kwargs['decel_limit']
-        accel_limit = kwargs['accel_limit']
+        self.decel_limit = kwargs['decel_limit']
+        self.accel_limit = kwargs['accel_limit']
         wheel_radius = kwargs['wheel_radius']
         wheel_base = kwargs['wheel_base']
         steer_ratio = kwargs['steer_ratio']
@@ -26,6 +28,9 @@ class Controller(object):
         linear_i_term = kwargs['linear_i_term']
         linear_d_term = kwargs['linear_d_term']
 
+        lpf_tau = kwargs['lpf_tau']
+        lpf_ts = kwargs['lpf_ts']
+
         # Calculate required braking torque according to vehicle dynamics?
         _total_vehicle_mass = vehicle_mass + fuel_capacity * GAS_DENSITY
         # Use F = ma to calculate the
@@ -36,10 +41,12 @@ class Controller(object):
         self.yaw_controller = YawController(wheel_base, steer_ratio,
                                             min_speed, max_lat_accel, max_steer_angle)
 
-        # Tune the parameters in dbw_node
+        # Tune PID and Low Pass Filter parameters in dbw_node
         self.linear_pid = PID(linear_p_term, linear_i_term, linear_d_term,
-                              decel_limit, accel_limit)
+                              self.decel_limit, self.accel_limit)
 
+        # Normalized frequency tau/ts is what matters
+        self.low_pass_filter = LowPassFilter(lpf_tau, lpf_ts)
         self._now = None
 
     def reset(self):
@@ -69,6 +76,10 @@ class Controller(object):
 
         _control_correction = self.linear_pid.step(_error, _sample_time)
 
+        # TODO: Use (recursive) longer tap FIR low pass filter
+        # Similar filter can also be used for interpolation and launch control?
+        _control_correction = self.low_pass_filter.filt(_control_correction)
+
         throttle = 0
         brake = 0
         if _control_correction > 0:
@@ -77,13 +88,29 @@ class Controller(object):
             # Should multiple it by the nominal value of control input
             throttle = accel
         else:
+            # When using brake torque message with DBW
             # Factor to achieve around 20000 max brake torque?
             # Now max brake torque is around 1800
             decel = abs(_control_correction)
             if decel > self.brake_deadband:
-                brake = self._brake_torque_base * decel * 1
+                brake = decel/float(self.decel_limit)
 
         # Steer and steer ratio
         steering = self.yaw_controller.get_steering(linear_velocity_setpoint,
                                                     angular_velocity_setpoint, current_linear_velocity)
         return throttle, brake, steering
+
+    def launch_control(self, vel):
+        return self._logistic(self.accel_limit, vel)
+
+    @staticmethod
+    def _logistic(max_x, x):
+        """
+        _steepness is determined empirically
+        :param max_x:
+        :param x:
+        :return:
+        """
+        _steepness = 0.3
+        _mid_point = 4
+        return max_x / (1 + pow(math.exp(1), _steepness * (_mid_point - x)))

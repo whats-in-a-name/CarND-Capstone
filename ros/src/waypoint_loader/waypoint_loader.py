@@ -54,10 +54,10 @@ class WaypointLoader(object):
                 # km/h to m/s
                 # Clamping speed in launch file
                 # For extra safety, we provide redundant clamping
-                # 10mph
+                # 10mph <-> 16Km/h
                 if self.velocity >= 10:
                     self.velocity = 10
-                p.twist.twist.linear.x = float(self.velocity)
+                p.twist.twist.linear.x = float(self.mph_to_mps(self.velocity))
 
                 waypoints.append(p)
         return self.decelerate(waypoints)
@@ -83,6 +83,14 @@ class WaypointLoader(object):
         lane.header.stamp = rospy.Time(0)
         lane.waypoints = waypoints
         self.pub.publish(lane)
+
+    def mph_to_mps(self, mph):
+        r"""
+        :param mph:
+        :return: m/s
+        """
+        return mph * 0.44704
+
 
 
 if __name__ == '__main__':

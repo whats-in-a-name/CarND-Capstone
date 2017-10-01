@@ -30,7 +30,9 @@ class DBWNode(object):
             min_speed=rospy.get_param('~min_speed', 0.0),
             linear_p_term=rospy.get_param('~linear_p_term', 1),
             linear_i_term=rospy.get_param('~linear_i_term', 0.0005),
-            linear_d_term=rospy.get_param('~linear_d_term', 0.05)
+            linear_d_term=rospy.get_param('~linear_d_term', 0.05),
+            lpf_tau=rospy.get_param('~lpf_tau', 0.5),
+            lpf_ts=rospy.get_param('~lpf_ts', 1)
         )
 
         # Target velocities
@@ -39,6 +41,9 @@ class DBWNode(object):
 
         # DBW activation state
         self.dbw_enabled = False
+
+        # m/s
+        self.LOW_SPEED_THRESHOLD = rospy.get_param('~low_speed_threshold', 3)
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd', SteeringCmd, queue_size=1)
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
@@ -55,18 +60,19 @@ class DBWNode(object):
             rospy.spin()
 
     def publish(self, throttle, brake, steer):
-        if throttle >= 0.08:
+        # The numerical issue is taken care by brake_deadband
+        if brake > 0:
+            bcmd = BrakeCmd()
+            bcmd.enable = True
+            bcmd.pedal_cmd_type = BrakeCmd.CMD_PERCENT
+            bcmd.pedal_cmd = brake
+            self.brake_pub.publish(bcmd)
+        else:
             tcmd = ThrottleCmd()
             tcmd.enable = True
             tcmd.pedal_cmd_type = ThrottleCmd.CMD_PERCENT
             tcmd.pedal_cmd = throttle
             self.throttle_pub.publish(tcmd)
-        else:
-            bcmd = BrakeCmd()
-            bcmd.enable = True
-            bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
-            bcmd.pedal_cmd = brake
-            self.brake_pub.publish(bcmd)
 
         scmd = SteeringCmd()
         scmd.enable = True
@@ -81,13 +87,19 @@ class DBWNode(object):
             self.controller.reset()
             return
 
-        command = self.controller.control(
+        _linear_velocity = msg.twist.linear.x
+        throttle, brake, steer = self.controller.control(
             angular_velocity_setpoint=self.angular_velocity,
             linear_velocity_setpoint=self.linear_velocity,
-            current_linear_velocity=msg.twist.linear.x
+            current_linear_velocity=_linear_velocity
         )
 
-        self.publish(*command)
+        # Using launch control to smooth low speed throttle increase
+        # e.g. restart after stopping for red light
+        if throttle > 0.08 and _linear_velocity < self.LOW_SPEED_THRESHOLD:
+            throttle = self.controller.launch_control(_linear_velocity)
+
+        self.publish(throttle=throttle, brake=brake, steer=steer)
 
     def dbw_twist_cb(self, msg):
         self.angular_velocity = msg.twist.angular.z
