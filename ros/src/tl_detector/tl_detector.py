@@ -211,16 +211,16 @@ class TLDetector(object):
             self.prev_light_loc = None
             return False
 
-        (x_tl, y_tl) = self.project_to_image_plane(light + np.array([-0.7, -0.7, 1.0]))
-        (x_br, y_br) = self.project_to_image_plane(light + np.array([0.5, 0.5, -1.0]))
+        (x_tl, y_tl) = self.project_to_image_plane(light + np.array([-1.0, -1.0, 1.0]))
+        (x_br, y_br) = self.project_to_image_plane(light + np.array([1.0, 1.0, -1.0]))
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         shape = cv_image.shape
 
-        a = int(max(0, y_tl)+5)
+        a = int(max(0, y_tl))
         b = int(min(y_br, shape[0]))
         c = int(max(0, min(x_br, x_tl)))
-        d = int(min(max(x_br, x_tl)-20, shape[1]))
+        d = int(min(max(x_br, x_tl), shape[1]))
 
         if (b - a) < 10 or (d - c) < 10:
             return TrafficLight.UNKNOWN
@@ -262,7 +262,7 @@ class TLDetector(object):
             i_stop = self.stop_indexes[j_stop]
 
         # Don't process if the closest stop line is too far.
-        if distance(p_car, self.stop_lines[j_stop]) > 50.0:
+        if distance(p_car, self.stop_lines[j_stop]) > 100.0:
             return (-1, TrafficLight.UNKNOWN)
 
         # Return the index and state of the traffic light.
