@@ -4,34 +4,36 @@ MAX_NUM = float('inf')
 
 
 class PID(object):
-    def __init__(self, kp, ki, kd, mn=MIN_NUM, mx=MAX_NUM):
-        self.kp = kp
-        self.ki = ki
-        self.kd = kd
-        self.min = mn
-        self.max = mx
+    def __init__(self, k_p, k_i, k_d, y_min=MIN_NUM, y_max=MAX_NUM):
+        self.k_p = k_p
+        self.k_i = k_i
+        self.k_d = k_d
+        self.y_min = y_min
+        self.y_max = y_max
 
-        self.int_val = self.last_int_val = self.last_error = 0.
+        self.reset()
 
     def reset(self):
-        self.int_val = 0.0
-        self.last_int_val = 0.0
+        self.e_p = None
+        self.e_i = 0.0
+        self.e_d = 0.0
 
-    def step(self, error, sample_time):
-        self.last_int_val = self.int_val
+    def step(self, e, dt):
+        if self.e_p is None:
+            self.e_p = e
 
-        integral = self.int_val + error * sample_time;
-        derivative = (error - self.last_error) / sample_time;
+        self.e_d = (e - self.e_p) / dt
+        self.e_i += e * dt
+        self.e_p = e
 
-        y = self.kp * error + self.ki * self.int_val + self.kd * derivative;
-        val = max(self.min, min(y, self.max))
+        y = (
+            self.k_p * self.e_p +
+            self.k_i * self.e_i +
+            self.k_d * self.e_d
+        )
 
-        if val > self.max:
-            val = self.max
-        elif val < self.min:
-            val = self.min
-        else:
-            self.int_val = integral
-        self.last_error = error
+        # Truncate y to the valid range.
+        y = min(y, self.y_max)
+        y = max(y, self.y_min)
 
-        return val
+        return y

@@ -31,14 +31,17 @@ class WaypointUpdater(object):
 
         self.current_velocity = 0
 
-        # List of route waypoints
-        self.waypoints = []
+        # Index of the waypoint closest to the car.
+        self.i_car = 0
+
+        # Index of the next stop point.
+        self.i_stop = -1
 
         # List of velocities up to the stop point ahead.
         self.v_stopping = []
 
-        # Index of the waypoint closest to the car.
-        self.i_car = 0
+        # List of route waypoints
+        self.waypoints = []
 
     def spin(self):
         rospy.spin()
@@ -52,19 +55,20 @@ class WaypointUpdater(object):
 
         a = i_car
         b = min(i_car + self.n, len(self.waypoints))
+        waypoints = deepcopy(self.waypoints[a:b])
 
         # Pub data
         lane = Lane()
         lane.header.frame_id = msg.header.frame_id
         lane.header.stamp = rospy.get_rostime()
-        lane.waypoints = deepcopy(self.waypoints[a:b])
+        lane.waypoints = waypoints
 
-        v_stopping = self.v_stopping
-        if len(v_stopping) > 0:
-            n_stopping = len(v_stopping)
-            for i in range(b - a):
+        v_stopping = self.v_stopping[i_car - self.i_stop - 1:]
+        n_stopping = len(v_stopping)
+        if n_stopping > 0:
+            for (i, waypoint) in enumerate(waypoints):
                 v = v_stopping[i] if i < n_stopping else 0.0
-                self.set_waypoint_velocity(lane.waypoints, i, v)
+                waypoint.twist.twist.linear.x = v
 
         self.final_waypoints.publish(lane)
 
@@ -75,24 +79,33 @@ class WaypointUpdater(object):
         self.waypoints = waypoints.waypoints
 
     def traffic_cb(self, msg):
+        i_stop = msg.data
+        if i_stop == self.i_stop:
+            return
+
+        self.i_stop = i_stop
         self.v_stopping = []
 
-        i_light = msg.data
-        if i_light < 0 or i_light < self.i_car:
+        if i_stop < 0 or i_stop < self.i_car:
             return
 
-        n = 1 + i_light - self.i_car
+        n_zero = 3
+
+        v_min = self.v_min
+        n = 1 + i_stop - self.i_car
         self.v_stopping = [0.0] * n
-        self.v_stopping[:-3] = [self.v_min] * (n - 3)
+        self.v_stopping[:-n_zero] = [v_min] * (n - n_zero)
 
-        if n < 7:
+        n_safe = 2 * n_zero
+
+        if n <= n_safe:
             return
 
-        v_max = max(self.current_velocity, self.v_min)
-        dv = v_max ** (1.0 / n)
+        v_max = max(self.current_velocity, v_min)
+        a = v_max / float(n - n_safe)
 
-        for i in range(n - 6):
-            self.v_stopping[i] = dv ** (n - 1 - i)
+        for i in range(n - n_safe):
+            self.v_stopping[i] = max(a * (n - i), v_min)
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x

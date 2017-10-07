@@ -40,6 +40,7 @@ class Controller(object):
                               decel_limit, accel_limit)
 
         self._now = None
+        self.v_min = min_speed
 
     def reset(self):
         """
@@ -70,7 +71,9 @@ class Controller(object):
 
         throttle = 0
         brake = 0
-        if _control_correction > 0:
+        if linear_velocity_setpoint == 0.0 and current_linear_velocity < self.v_min:
+            brake = self._brake_torque_base
+        elif _control_correction > 0:
             throttle = _control_correction
         else:
             brake = -1.0 * self._brake_torque_base * _control_correction
