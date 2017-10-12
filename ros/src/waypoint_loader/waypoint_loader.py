@@ -87,7 +87,6 @@ class WaypointLoader(object):
         return mph * 0.44704
 
 
-
 if __name__ == '__main__':
     try:
         WaypointLoader()
