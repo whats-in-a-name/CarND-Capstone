@@ -31,7 +31,7 @@ TYPE = {
     'steer_cmd': SteeringCmd,
     'brake_cmd': BrakeCmd,
     'throttle_cmd': ThrottleCmd,
-    'image':Image
+    'image': Image
 }
 
 
@@ -137,7 +137,6 @@ class Bridge(object):
         self.vel = data['velocity']* 0.44704
         self.angular = self.calc_angular(data['yaw'] * math.pi/180.)
         self.publishers['current_velocity'].publish(self.create_twist(self.vel, self.angular))
-
 
     def publish_controls(self, data):
         steering, throttle, brake = data['steering_angle'], data['throttle'], data['brake']

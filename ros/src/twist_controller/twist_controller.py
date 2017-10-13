@@ -1,4 +1,5 @@
 import rospy
+import math
 
 from yaw_controller import YawController
 from pid import PID
@@ -13,7 +14,7 @@ class Controller(object):
         vehicle_mass = kwargs['vehicle_mass']
         fuel_capacity = kwargs['fuel_capacity']
         decel_limit = kwargs['decel_limit']
-        accel_limit = kwargs['accel_limit']
+        self.accel_limit = kwargs['accel_limit']
         wheel_radius = kwargs['wheel_radius']
         wheel_base = kwargs['wheel_base']
         steer_ratio = kwargs['steer_ratio']
@@ -37,7 +38,7 @@ class Controller(object):
 
         # Tune the parameters in dbw_node
         self.linear_pid = PID(linear_p_term, linear_i_term, linear_d_term,
-                              decel_limit, accel_limit)
+                              decel_limit, self.accel_limit)
 
         self._now = None
         self.v_min = min_speed
@@ -73,7 +74,10 @@ class Controller(object):
         brake = 0
         if linear_velocity_setpoint == 0.0 and current_linear_velocity < self.v_min:
             brake = self._brake_torque_base
-        elif _control_correction > 0:
+        # 3m/s
+        elif linear_velocity_setpoint > 0 and _control_correction > 0.0 and current_linear_velocity < 3:
+            throttle = self.launch_control(current_linear_velocity)
+        elif _control_correction >= 0:
             throttle = _control_correction
         else:
             brake = -1.0 * self._brake_torque_base * _control_correction
@@ -83,3 +87,17 @@ class Controller(object):
                                                     angular_velocity_setpoint, current_linear_velocity)
 
         return throttle, brake, steering
+
+    def launch_control(self, vel):
+        return self._logistic(self.accel_limit, vel)
+
+    def _logistic(self, max_x, x):
+        """
+        _steepness is determined empirically
+        :param max_x:
+        :param x:
+        :return:
+        """
+        _steepness = 0.3
+        _mid_point = 4
+        return max_x / (1 + pow(math.exp(1), _steepness * (_mid_point - x)))
