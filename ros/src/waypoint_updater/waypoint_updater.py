@@ -49,7 +49,9 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         i_car = self.find_nearest_wp(msg.pose.position.x, msg.pose.position.y)
         if i_car < 0:
-            self.i_car = i_car
+            return
+
+        self.i_car = i_car
 
         a = i_car
         b = min(i_car + self.n, len(self.waypoints))
