@@ -12,7 +12,7 @@ import sensor_msgs.point_cloud2 as pcl2
 from std_msgs.msg import Header
 from cv_bridge import CvBridge, CvBridgeError
 
-from styx_msgs.msg import TrafficLight, TrafficLightArray, Lane
+from styx_msgs.msg import TrafficLight, TrafficLightArray
 import numpy as np
 from PIL import Image as PIL_Image
 from io import BytesIO
@@ -31,8 +31,7 @@ TYPE = {
     'steer_cmd': SteeringCmd,
     'brake_cmd': BrakeCmd,
     'throttle_cmd': ThrottleCmd,
-    'image': Image,
-    'Lane': Lane
+    'image': Image
 }
 
 
@@ -49,9 +48,6 @@ class Bridge(object):
             '/vehicle/steering_cmd': self.callback_steering,
             '/vehicle/throttle_cmd': self.callback_throttle,
             '/vehicle/brake_cmd': self.callback_brake,
-
-            '/base_waypoints': self.callback_base_waypoints,
-            '/image_zoomed': self.callback_image_zoomed
         }
 
         self.subscribers = [rospy.Subscriber(e.topic, TYPE[e.type], self.callbacks[e.topic])
@@ -142,13 +138,6 @@ class Bridge(object):
         self.angular = self.calc_angular(data['yaw'] * math.pi/180.)
         self.publishers['current_velocity'].publish(self.create_twist(self.vel, self.angular))
 
-        _s = ' '
-        position_str = _s.join((str(data['x']), str(data['y']), str(data['z']), str(data['yaw'])))
-        current_velocity_str = _s.join((str(self.vel), str(self.angular)))
-        self.server('current_pose', data={'current_pose': position_str})
-        self.server('current_velocity', data={'current_velocity': current_velocity_str})
-
-
     def publish_controls(self, data):
         steering, throttle, brake = data['steering_angle'], data['throttle'], data['brake']
         self.publishers['steering_report'].publish(self.create_steer(steering))
@@ -182,7 +171,6 @@ class Bridge(object):
 
     def publish_dbw_status(self, data):
         self.publishers['dbw_status'].publish(Bool(data))
-        self.server('dbw_status', data={'dbw_status': str(data)})
 
     def publish_camera(self, data):
         imgString = data["image"]
@@ -191,7 +179,6 @@ class Bridge(object):
 
         image_message = self.bridge.cv2_to_imgmsg(image_array, encoding="rgb8")
         self.publishers['image'].publish(image_message)
-        # self.server('image', data={'image': imgString})
 
     def callback_steering(self, data):
         self.server('steer', data={'steering_angle': str(data.steering_wheel_angle_cmd)})
@@ -201,30 +188,3 @@ class Bridge(object):
 
     def callback_brake(self, data):
         self.server('brake', data={'brake': str(data.pedal_cmd)})
-
-    def callback_base_waypoints(self, data):
-        out_str = ''
-        for wp in data.waypoints:
-            _s = ' '
-            _x = wp.pose.pose.position.x
-            _y = wp.pose.pose.position.y
-            _linear = wp.twist.twist.linear.x
-            _angular = wp.twist.twist.angular.z
-            out_str += _s.join((str(_x), str(_y), str(_linear), str(_angular)))
-            out_str += ' '
-        # self.server('base_waypoints', data={'base_waypoints': str(data.waypoints)})
-        self.server('base_waypoints', data={'base_waypoints': out_str})
-
-    def callback_image_zoomed(self, data):
-        cv_image_np = np.asarray(self.bridge.imgmsg_to_cv2(data, "rgb8"))
-        im_buffer = BytesIO()
-        im = PIL_Image.fromarray(cv_image_np)
-        im.save(im_buffer, format="JPEG")
-        img_str = base64.b64encode(im_buffer.getvalue())
-        self.server('image_zoomed', data={'image_zoomed': img_str})
-
-    def publish_lpf_status(self, msg):
-        self.publishers['lpf_status'].publish(Bool(msg))
-
-    def publish_lc_status(self, msg):
-        self.publishers['lc_status'].publish(Bool(msg))

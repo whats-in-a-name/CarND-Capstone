@@ -32,7 +32,7 @@ class Controller(object):
         # F_max = m * a_max
         # T_max = F_max * r = m * r * a_max
         # Assume all CoFs (Coefficient of Frictions) are 1
-        self._brake_torque_base = _total_vehicle_mass * wheel_radius
+        # self._brake_torque_base = _total_vehicle_mass * wheel_radius
         self.yaw_controller = YawController(wheel_base, steer_ratio,
                                             min_speed, max_lat_accel, max_steer_angle)
 
@@ -73,14 +73,14 @@ class Controller(object):
         throttle = 0
         brake = 0
         if linear_velocity_setpoint == 0.0 and current_linear_velocity < self.v_min:
-            brake = self._brake_torque_base
+            brake = 1.0
         # 3m/s
         elif linear_velocity_setpoint > 0 and _control_correction > 0.0 and current_linear_velocity < 3:
             throttle = self.launch_control(current_linear_velocity)
         elif _control_correction >= 0:
             throttle = _control_correction
         else:
-            brake = -1.0 * self._brake_torque_base * _control_correction
+            brake = -1.0 * _control_correction
 
         # Steer and steer ratio
         steering = self.yaw_controller.get_steering(linear_velocity_setpoint,
