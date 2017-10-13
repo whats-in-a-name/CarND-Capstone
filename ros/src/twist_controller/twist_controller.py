@@ -74,8 +74,8 @@ class Controller(object):
         brake = 0
         if linear_velocity_setpoint == 0.0 and current_linear_velocity < self.v_min:
             brake = self._brake_torque_base
-        # 3m/s
-        elif linear_velocity_setpoint > 0 and _control_correction > 0.0 and current_linear_velocity < 3:
+        # m/s
+        elif linear_velocity_setpoint > 0 and _control_correction > 0.0 and current_linear_velocity < self.v_min:
             throttle = self.launch_control(current_linear_velocity)
         elif _control_correction >= 0:
             throttle = _control_correction

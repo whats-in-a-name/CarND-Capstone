@@ -125,6 +125,8 @@ class WaypointUpdater(object):
         return (x0 - x1) ** 2.0 + (y0 - y1) ** 2.0
 
     def find_nearest_wp(self, x, y):
+        if getattr(self, 'waypoints') is None:
+            return
         waypoints = self.waypoints[self.i_car:]
         if len(waypoints) < 1:
             return -1
