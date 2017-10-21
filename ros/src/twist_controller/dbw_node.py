@@ -26,7 +26,8 @@ class DBWNode(object):
             steer_ratio=rospy.get_param('~steer_ratio', 14.8),
             max_lat_accel=rospy.get_param('~max_lat_accel', 3.),
             max_steer_angle=rospy.get_param('~max_steer_angle', 8.),
-            min_speed=rospy.get_param('~min_speed', 1.0),
+            # m/s
+            min_speed=rospy.get_param('~min_speed', 0.7),
             linear_p_term=rospy.get_param('~linear_p_term', 0.3),
             linear_i_term=rospy.get_param('~linear_i_term', 0.01),
             linear_d_term=rospy.get_param('~linear_d_term', 0.028)
